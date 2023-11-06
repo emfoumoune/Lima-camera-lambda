@@ -427,10 +427,10 @@ void Camera::getTrigMode(TrigMode& mode)
 }
 
 //---------------------------------------------------------------------------------------
-//! Camera::getEnergyThreshold()
-//! energy threshold in KeV
+//! Camera::getLowerEnergyThreshold()
+//! lower energy threshold in KeV
 //---------------------------------------------------------------------------------------
-void Camera::getEnergyThreshold(double& energy_threshold)
+void Camera::getLowerEnergyThreshold(double& energy_threshold)
 {
     DEB_MEMBER_FUNCT();
     // up to 8 thresholds can be set, we only use the first one
@@ -444,15 +444,37 @@ void Camera::getEnergyThreshold(double& energy_threshold)
 }
 
 //---------------------------------------------------------------------------------------
-//! Camera::setEnergyThreshold()
-//! energy threshold in KeV
+//! Camera::getUpperEnergyThreshold()
+//! upper energy threshold in KeV
 //---------------------------------------------------------------------------------------
-void Camera::setEnergyThreshold(double energy_threshold)
+void Camera::getUpperEnergyThreshold(double& energy_threshold)
 {
     DEB_MEMBER_FUNCT();
-    DEB_TRACE() << "Camera::setEnergyThreshold - " << DEB_VAR1(energy_threshold);
-    DEB_PARAM() << DEB_VAR1(energy_threshold);
-    detector->setThresholds(std::vector<double>{energy_threshold});
+    // we use the second threshold
+    auto thresholds = detector->thresholds();
+    // at cold start we get an empty double vector
+    if (thresholds.size() >= 2)
+        energy_threshold = thresholds[1];    
+    else
+        energy_threshold = -1; 
+
+    DEB_RETURN() << DEB_VAR1(energy_threshold);
+}
+
+//---------------------------------------------------------------------------------------
+//! Camera::setEnergyThresholds()
+//! lower and upper energy threshold in KeV
+//---------------------------------------------------------------------------------------
+void Camera::setEnergyThresholds(double lower_energy_threshold, double upper_energy_threshold)
+{
+    DEB_MEMBER_FUNCT();
+    DEB_TRACE() << "Camera::setEnergyThresholds - set lowerThreshold " << DEB_VAR1(lower_energy_threshold);
+    DEB_PARAM() << DEB_VAR1(lower_energy_threshold);
+
+    DEB_TRACE() << "Camera::setEnergyThresholds - set upperThreshold " << DEB_VAR1(upper_energy_threshold);
+    DEB_PARAM() << DEB_VAR1(upper_energy_threshold);
+
+    detector->setThresholds(std::vector<double>{lower_energy_threshold, upper_energy_threshold});
 }
 
 //---------------------------------------------------------------------------------------
@@ -570,7 +592,7 @@ void Camera::getDistortionCorrection(bool &is_on)
 //---------------------------------------------------------------------------------------
 void Camera::setDistortionCorrection(bool flag)
 {
-      if (flag)
+    if (flag)
         detector->enableInterpolation();
     else
         detector->disableInterpolation();
@@ -681,5 +703,41 @@ void Camera::setSaturationThreshold(int saturation_threshold)
     for(int module_nr = 1 ; module_nr <= detector->numberOfModules() ; ++module_nr)
     {    
         detector->setSaturationThreshold(module_nr, saturation_threshold);
+    }
+}
+
+//---------------------------------------------------------------------------------------
+//! Camera::getChargeSumming()
+//! sets charge summing mode
+//---------------------------------------------------------------------------------------
+void Camera::getChargeSumming(bool &is_charge_summing)
+{
+    DEB_MEMBER_FUNCT();
+
+    if(xsp::lambda::ChargeSumming::ON == detector->chargeSumming())
+    {
+        is_charge_summing = true;
+    }
+    else if(xsp::lambda::ChargeSumming::OFF == detector->chargeSumming())
+    {
+        is_charge_summing = false;
+    }
+
+    DEB_RETURN() << DEB_VAR1(is_charge_summing);
+}
+
+//---------------------------------------------------------------------------------------
+//! Camera::setChargeSumming()
+//! sets charge summing mode
+//---------------------------------------------------------------------------------------
+void Camera::setChargeSumming(int is_charge_summing)
+{
+    if(is_charge_summing)
+    {
+        detector->setChargeSumming(xsp::lambda::ChargeSumming::ON);
+    }
+    else
+    {
+        detector->setChargeSumming(xsp::lambda::ChargeSumming::OFF);
     }
 }

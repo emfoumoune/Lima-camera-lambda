@@ -57,8 +57,10 @@ public:
 	HwBufferCtrlObj* getBufferCtrlObj();
 
 	//-- Camera specific configuration parameters
-	void getEnergyThreshold(double &energy);
-	void setEnergyThreshold(double energy);	
+	void getLowerEnergyThreshold(double &energy);
+	void getUpperEnergyThreshold(double &energy);
+	void setEnergyThresholds(double lower_energy_threshold, double upper_energy_threshold);
+
 	void getTemperature(double &temperature);
 	void getDistortionCorrection(bool &is_on);
 	void setDistortionCorrection(bool flag);
@@ -85,7 +87,9 @@ public:
 	void setSaturationFlag(bool flag);
 	void getSaturationThreshold(int &saturation_threshold);
 	void setSaturationThreshold(int saturation_threshold);
-	
+	void getChargeSumming(bool &is_charge_summing);
+	void setChargeSumming(int is_charge_summing);
+
 private:
 	class CameraThread: public CmdThread
 	{
