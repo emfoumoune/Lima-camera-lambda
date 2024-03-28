@@ -228,6 +228,7 @@ Camera::Camera(std::string& config_file):
     }
     
     m_size = Size(receiver->frameWidth(),receiver->frameHeight());
+    is_frame_summing = m_nb_frames > 1;
     
     m_thread.start();
 }
@@ -740,4 +741,89 @@ void Camera::setChargeSumming(int is_charge_summing)
     {
         detector->setChargeSumming(xsp::lambda::ChargeSumming::OFF);
     }
+}
+
+// Frame summing
+//---------------------------------------------------------------------------------------
+//! Camera Frame summing setting params
+//! globalExposure = exposure_i * N
+//---------------------------------------------------------------------------------------
+void Camera::checkDependency(int nb_frames, double exposure)
+{
+    // Check image bits
+    double exposure_i = exposure / nb_frames;
+    xsp::lambda::OperationMode om = detector->operationMode();
+    if (exposure_i > 1)
+    {
+        if (om.bit_depth != xsp::lambda::BitDepth::DEPTH_24)
+            throw LIMA_HW_EXC(InvalidValue, "Exposure by frame is not conform with operation mode : 24 bits image required !");
+        //detector->setOperationMode(OperationMode(xsp::lambda::BitDepth::DEPTH_24));
+        //detector->setBitDepth(xsp::lambda::BitDepth::DEPTH_24);
+    }
+    else if (exposure_i >= 0.5)
+    {
+        if (om.bit_depth != xsp::lambda::BitDepth::DEPTH_12)
+            throw LIMA_HW_EXC(InvalidValue, "Exposure by frame is not conform with operation mode : 12 bits image required !");
+        //detector->setOperationMode(OperationMode(xsp::lambda::BitDepth::DEPTH_12));
+        //detector->setBitDepth(xsp::lambda::BitDepth::DEPTH_12);
+    }
+    else if (exposure_i >= 0.25)
+    {
+        if (om.bit_depth != xsp::lambda::BitDepth::DEPTH_6)
+            throw LIMA_HW_EXC(InvalidValue, "Exposure by frame is not conform with operation mode : 6 bits image required !");
+        //detector->setOperationMode(OperationMode(xsp::lambda::BitDepth::DEPTH_6));
+        //detector->setBitDepth(xsp::lambda::BitDepth::DEPTH_6);
+    }
+    else {
+        if (om.bit_depth != xsp::lambda::BitDepth::DEPTH_1)
+            throw LIMA_HW_EXC(InvalidValue, "Exposure by frame is not conform with operation mode : 1 bit image required !");
+        //detector->setOperationMode(OperationMode(xsp::lambda::BitDepth::DEPTH_1));
+        //detector->setBitDepth(xsp::lambda::BitDepth::DEPTH_1);
+    }
+}
+
+void Camera::setExposures(double exposure, double exposure_i)
+{
+    DEB_MEMBER_FUNCT();
+    DEB_TRACE() << "Camera::setExposures - " << DEB_VAR2(exposure, exposure_i);
+
+    double xx_exposure = exposure;
+    int nb_frames = exposure / exposure_i;
+    // corretion exposure
+    if ((exposure - (exposure_i * nb_frames)) == 0.0)
+        xx_exposure = exposure;
+    else 
+        xx_exposure = exposure_i * nb_frames;
+
+    checkDependency(nb_frames, xx_exposure);
+
+    setExpTime(xx_exposure);   
+    setNbFrames(nb_frames);
+    is_frame_summing = m_nb_frames > 1;
+}
+
+void Camera::setNbFrameAndExposureByImage(int nb_frames, double exposure_i)
+{
+    DEB_MEMBER_FUNCT();
+    DEB_TRACE() << "Camera::setNbFrameAndExposureByImage - " << DEB_VAR2(nb_frames, exposure_i);
+
+    
+    double xx_exposure = nb_frames * exposure_i;
+    checkDependency(nb_frames, xx_exposure);
+
+    setExpTime(xx_exposure);
+    setNbFrames(nb_frames);
+    is_frame_summing = m_nb_frames > 1;
+}
+
+void Camera::setNbFrameAndExposure(int nb_frames, double exposure)
+{
+    DEB_MEMBER_FUNCT();
+    DEB_TRACE() << "Camera::setNbFrameAndExposure - " << DEB_VAR2(nb_frames, exposure);
+
+    checkDependency(nb_frames, exposure);
+
+    setExpTime(exposure);
+    setNbFrames(nb_frames);
+    is_frame_summing = m_nb_frames > 1;
 }

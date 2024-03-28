@@ -90,6 +90,12 @@ public:
 	void getChargeSumming(bool &is_charge_summing);
 	void setChargeSumming(int is_charge_summing);
 
+	// Frame summing
+	void checkDependency(int nb_frames, double exposure);
+	void setExposures(double exposure, double exposure_i);
+	void setNbFrameAndExposureByImage(int nb_frames, double exposure_i);
+	void setNbFrameAndExposure(int nb_frames, double exposure);
+
 private:
 	class CameraThread: public CmdThread
 	{
@@ -142,7 +148,9 @@ private:
 	/* main acquisition thread*/
 	CameraThread 	m_thread;
 	int 		m_acq_frame_nb;
-	
+
+	// Frame summing
+	bool is_frame_summing;
 };
 }
 }
