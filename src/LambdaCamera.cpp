@@ -743,8 +743,8 @@ void Camera::setChargeSumming(int is_charge_summing)
     }
 }
 
-// Frame summing
 //---------------------------------------------------------------------------------------
+//! ICATHALES-582 - Frame summing by accumulation
 //! Camera Frame summing setting params
 //! globalExposure = exposure_i * N
 //---------------------------------------------------------------------------------------
@@ -782,6 +782,7 @@ void Camera::checkDependency(int nb_frames, double exposure)
     }
 }
 
+// ICATHALES-582 : Use case 1
 void Camera::setExposures(double exposure, double exposure_i)
 {
     DEB_MEMBER_FUNCT();
@@ -802,12 +803,12 @@ void Camera::setExposures(double exposure, double exposure_i)
     is_frame_summing = m_nb_frames > 1;
 }
 
+// ICATHALES-582 : Use case 2
 void Camera::setNbFrameAndExposureByImage(int nb_frames, double exposure_i)
 {
     DEB_MEMBER_FUNCT();
     DEB_TRACE() << "Camera::setNbFrameAndExposureByImage - " << DEB_VAR2(nb_frames, exposure_i);
 
-    
     double xx_exposure = nb_frames * exposure_i;
     checkDependency(nb_frames, xx_exposure);
 
@@ -816,6 +817,7 @@ void Camera::setNbFrameAndExposureByImage(int nb_frames, double exposure_i)
     is_frame_summing = m_nb_frames > 1;
 }
 
+// ICATHALES-582 : Use case 3
 void Camera::setNbFrameAndExposure(int nb_frames, double exposure)
 {
     DEB_MEMBER_FUNCT();
