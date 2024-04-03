@@ -91,10 +91,10 @@ public:
 	void setChargeSumming(int is_charge_summing);
 
 	// Frame summing
-	void checkDependency(int nb_frames, double exposure);
-	void setExposures(double exposure, double exposure_i);
-	void setNbFrameAndExposureByImage(int nb_frames, double exposure_i);
-	void setNbFrameAndExposure(int nb_frames, double exposure);
+	void checkDependency(double exposure_i);
+
+	void setExposureAccuTime(double exposure_i);
+	void setAccumulationMode(bool accumulationMode);
 
 private:
 	class CameraThread: public CmdThread
@@ -150,6 +150,7 @@ private:
 	int 		m_acq_frame_nb;
 
 	// Frame summing
+	double m_exposure_i;
 	bool is_frame_summing;
 };
 }

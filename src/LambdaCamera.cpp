@@ -228,7 +228,8 @@ Camera::Camera(std::string& config_file):
     }
     
     m_size = Size(receiver->frameWidth(),receiver->frameHeight());
-    is_frame_summing = m_nb_frames > 1;
+    is_frame_summing = false;
+    m_exposure_i = 0.0;
     
     m_thread.start();
 }
@@ -748,10 +749,9 @@ void Camera::setChargeSumming(int is_charge_summing)
 //! Camera Frame summing setting params
 //! globalExposure = exposure_i * N
 //---------------------------------------------------------------------------------------
-void Camera::checkDependency(int nb_frames, double exposure)
+void Camera::checkDependency(double exposure_i)
 {
     // Check image bits
-    double exposure_i = exposure / nb_frames;
     xsp::lambda::OperationMode om = detector->operationMode();
     if (exposure_i > 1)
     {
@@ -774,58 +774,53 @@ void Camera::checkDependency(int nb_frames, double exposure)
         //detector->setOperationMode(OperationMode(xsp::lambda::BitDepth::DEPTH_6));
         //detector->setBitDepth(xsp::lambda::BitDepth::DEPTH_6);
     }
-    else {
+    else if (exposure_i > 0.0) {
         if (om.bit_depth != xsp::lambda::BitDepth::DEPTH_1)
             throw LIMA_HW_EXC(InvalidValue, "Exposure by frame is not conform with operation mode : 1 bit image required !");
         //detector->setOperationMode(OperationMode(xsp::lambda::BitDepth::DEPTH_1));
         //detector->setBitDepth(xsp::lambda::BitDepth::DEPTH_1);
     }
-}
-
-// ICATHALES-582 : Use case 1
-void Camera::setExposures(double exposure, double exposure_i)
-{
-    DEB_MEMBER_FUNCT();
-    DEB_TRACE() << "Camera::setExposures - " << DEB_VAR2(exposure, exposure_i);
-
-    double xx_exposure = exposure;
-    int nb_frames = exposure / exposure_i;
-    // corretion exposure
-    if ((exposure - (exposure_i * nb_frames)) == 0.0)
-        xx_exposure = exposure;
     else 
-        xx_exposure = exposure_i * nb_frames;
-
-    checkDependency(nb_frames, xx_exposure);
-
-    setExpTime(xx_exposure);   
-    setNbFrames(nb_frames);
-    is_frame_summing = m_nb_frames > 1;
+        throw LIMA_HW_EXC(InvalidValue, "Exposure by frame should be positive and not null !");
 }
 
-// ICATHALES-582 : Use case 2
-void Camera::setNbFrameAndExposureByImage(int nb_frames, double exposure_i)
+void Camera::setExposureAccuTime(double exposureAccuTime)
 {
     DEB_MEMBER_FUNCT();
-    DEB_TRACE() << "Camera::setNbFrameAndExposureByImage - " << DEB_VAR2(nb_frames, exposure_i);
+    DEB_TRACE() << "Camera::setExposureAccuTime - " << DEB_VAR1(exposureAccuTime);
 
-    double xx_exposure = nb_frames * exposure_i;
-    checkDependency(nb_frames, xx_exposure);
+    double exposureByFrame = exposureAccuTime / 1E3;
+    if (exposureByFrame < 1 || exposureByFrame > m_exposure)
+        LIMA_HW_EXC(InvalidValue, "Exposure by frame should be positive, greather than zero, in milliseconds and less than global exposure.");
 
-    setExpTime(xx_exposure);
-    setNbFrames(nb_frames);
-    is_frame_summing = m_nb_frames > 1;
+
+    // Check if exposure_i is adapted to device
+    //checkDependency(exposureAccuTime);
+
+    m_exposure_i = exposureByFrame;
+
+    // Nb frames to sum by image
+    int N = m_exposure / m_exposure_i;
+    receiver->setSummedFrames(N);
+
+    is_frame_summing |= N > 1;
 }
 
-// ICATHALES-582 : Use case 3
-void Camera::setNbFrameAndExposure(int nb_frames, double exposure)
+void Camera::setAccumulationMode(bool accumulationMode)
 {
     DEB_MEMBER_FUNCT();
-    DEB_TRACE() << "Camera::setNbFrameAndExposure - " << DEB_VAR2(nb_frames, exposure);
+    DEB_TRACE() << "Camera::setAccumulationMode - " << DEB_VAR1(accumulationMode);
 
-    checkDependency(nb_frames, exposure);
-
-    setExpTime(exposure);
-    setNbFrames(nb_frames);
-    is_frame_summing = m_nb_frames > 1;
+    // Le hardware se met en mode summing automatiquement quand N > 1
+    if (accumulationMode) {
+        if (m_exposure_i == 0.0)
+            LIMA_HW_EXC(InvalidValue, "Impossible to determine N. Fix before exposureAccuTime");            
+    
+        int N = m_exposure / m_exposure_i;
+        receiver->setSummedFrames(N);
+    }
+    else {
+        receiver->setSummedFrames(1);
+    }
+    is_frame_summing = accumulationMode;
 }
