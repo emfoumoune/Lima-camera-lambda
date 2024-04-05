@@ -228,8 +228,18 @@ Camera::Camera(std::string& config_file):
     }
     
     m_size = Size(receiver->frameWidth(),receiver->frameHeight());
-    is_frame_summing = false;
-    m_exposure_i = 0.0;
+
+    int N = receiver->summedFrames();
+    if (N > 1)
+    {
+        m_exposure_i = m_exposure / (double)N;
+        is_frame_summing = true;
+    }
+    else
+    {
+        is_frame_summing = false;
+        m_exposure_i = m_exposure;
+    }
     
     m_thread.start();
 }
@@ -790,20 +800,19 @@ void Camera::setExposureAccuTime(double exposureAccuTime)
     DEB_TRACE() << "Camera::setExposureAccuTime - " << DEB_VAR1(exposureAccuTime);
 
     double exposureByFrame = exposureAccuTime / 1E3;
-    if (exposureByFrame < 1 || exposureByFrame > m_exposure)
+    if (exposureByFrame <= 0.0 || exposureByFrame > m_exposure)
         LIMA_HW_EXC(InvalidValue, "Exposure by frame should be positive, greather than zero, in milliseconds and less than global exposure.");
-
-
-    // Check if exposure_i is adapted to device
-    //checkDependency(exposureAccuTime);
 
     m_exposure_i = exposureByFrame;
 
-    // Nb frames to sum by image
-    int N = m_exposure / m_exposure_i;
-    receiver->setSummedFrames(N);
+    if (receiver->summedFrames() > 1)
+    {
+        // Update Nb frames to sum by image
+        int N = m_exposure / m_exposure_i;
+        receiver->setSummedFrames(N);
 
-    is_frame_summing |= N > 1;
+        is_frame_summing = N > 1;
+    }
 }
 
 void Camera::setAccumulationMode(bool accumulationMode)
@@ -812,14 +821,17 @@ void Camera::setAccumulationMode(bool accumulationMode)
     DEB_TRACE() << "Camera::setAccumulationMode - " << DEB_VAR1(accumulationMode);
 
     // Le hardware se met en mode summing automatiquement quand N > 1
-    if (accumulationMode) {
+    if (accumulationMode)
+    {
         if (m_exposure_i == 0.0)
             LIMA_HW_EXC(InvalidValue, "Impossible to determine N. Fix before exposureAccuTime");            
     
+        // Activation summing
         int N = m_exposure / m_exposure_i;
         receiver->setSummedFrames(N);
     }
     else {
+        // Desactivation summing
         receiver->setSummedFrames(1);
     }
     is_frame_summing = accumulationMode;
