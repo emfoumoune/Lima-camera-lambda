@@ -536,7 +536,11 @@ void Camera::setImageType(ImageType type)
     DEB_TRACE() << "Camera::setImageType - " << DEB_VAR1(type);
 
     xsp::lambda::BitDepth depth;
-    if(type == Bpp12)
+    if(type == Bpp1)
+        depth = xsp::lambda::BitDepth::DEPTH_1;
+    else if(type == Bpp6)
+        depth = xsp::lambda::BitDepth::DEPTH_6;
+    else if(type == Bpp12)
         depth = xsp::lambda::BitDepth::DEPTH_12;
     else if(type == Bpp24)
         depth = xsp::lambda::BitDepth::DEPTH_24;
@@ -554,7 +558,11 @@ void Camera::getImageType(ImageType& type)
     xsp::lambda::BitDepth depth;
     depth = detector->bitDepth();
 
-    if(depth == xsp::lambda::BitDepth::DEPTH_12)
+    if(depth == xsp::lambda::BitDepth::DEPTH_1)
+        type = Bpp1;
+    else if(depth == xsp::lambda::BitDepth::DEPTH_6)
+        type = Bpp6;
+    else if(depth == xsp::lambda::BitDepth::DEPTH_12)
         type = Bpp12;
     else if(depth == xsp::lambda::BitDepth::DEPTH_24)
         type = Bpp24;
@@ -755,10 +763,11 @@ void Camera::setAcquisitionMode(int acq_mode)
     if (acq_mode != 1 && acq_mode != 6 && acq_mode != 12 && acq_mode != 24)
         throw LIMA_HW_EXC(InvalidValue, "Acquisition mode should be 1, 6, 12 or 24 bits");
 
-    if ((acq_mode == 1 || acq_mode == 6) && !hasFeature(xsp::lambda::Feature::FEAT_1_6_BIT))
-        throw LIMA_HW_EXC(Error, "The device does not support 1 and 6 bits");
+    //if ((acq_mode == 1 || acq_mode == 6) && !hasFeature(xsp::lambda::Feature::FEAT_1_6_BIT))
+    //    throw LIMA_HW_EXC(Error, "The device does not support 1 and 6 bits");
 
-    switch(acq_mode) {
+    switch(acq_mode) 
+    {
         case  1: detector->setBitDepth(xsp::lambda::BitDepth::DEPTH_1); break;
         case  6: detector->setBitDepth(xsp::lambda::BitDepth::DEPTH_6); break;
         case 12: detector->setBitDepth(xsp::lambda::BitDepth::DEPTH_12); break;
@@ -773,7 +782,8 @@ void Camera::getAcquisitionMode(int &acq_mode)
     DEB_MEMBER_FUNCT();
     //acq_mode = m_acquisition_mode;
     xsp::lambda::BitDepth bitDepth = detector->bitDepth();
-    switch(bitDepth) {
+    switch(bitDepth) 
+    {
         case xsp::lambda::BitDepth::DEPTH_1 : acq_mode =  1; break;
         case xsp::lambda::BitDepth::DEPTH_6 : acq_mode =  6; break;
         case xsp::lambda::BitDepth::DEPTH_12: acq_mode = 12; break;
