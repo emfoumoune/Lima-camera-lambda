@@ -228,6 +228,18 @@ Camera::Camera(std::string& config_file):
     }
     
     m_size = Size(receiver->frameWidth(),receiver->frameHeight());
+
+    int N = receiver->summedFrames();
+    if (N > 1)
+    {
+        m_exposure_i = m_exposure / (double)N;
+        is_frame_summing = true;
+    }
+    else
+    {
+        is_frame_summing = false;
+        m_exposure_i = m_exposure;
+    }
     
     m_thread.start();
 }
@@ -740,4 +752,87 @@ void Camera::setChargeSumming(int is_charge_summing)
     {
         detector->setChargeSumming(xsp::lambda::ChargeSumming::OFF);
     }
+}
+
+//---------------------------------------------------------------------------------------
+//! ICATHALES-582 - Frame summing by accumulation
+//! Camera Frame summing setting params
+//! globalExposure = exposure_i * N
+//---------------------------------------------------------------------------------------
+void Camera::checkDependency(double exposure_i)
+{
+    // Check image bits
+    xsp::lambda::OperationMode om = detector->operationMode();
+    if (exposure_i > 1)
+    {
+        if (om.bit_depth != xsp::lambda::BitDepth::DEPTH_24)
+            throw LIMA_HW_EXC(InvalidValue, "Exposure by frame is not conform with operation mode : 24 bits image required !");
+        //detector->setOperationMode(OperationMode(xsp::lambda::BitDepth::DEPTH_24));
+        //detector->setBitDepth(xsp::lambda::BitDepth::DEPTH_24);
+    }
+    else if (exposure_i >= 0.5)
+    {
+        if (om.bit_depth != xsp::lambda::BitDepth::DEPTH_12)
+            throw LIMA_HW_EXC(InvalidValue, "Exposure by frame is not conform with operation mode : 12 bits image required !");
+        //detector->setOperationMode(OperationMode(xsp::lambda::BitDepth::DEPTH_12));
+        //detector->setBitDepth(xsp::lambda::BitDepth::DEPTH_12);
+    }
+    else if (exposure_i >= 0.25)
+    {
+        if (om.bit_depth != xsp::lambda::BitDepth::DEPTH_6)
+            throw LIMA_HW_EXC(InvalidValue, "Exposure by frame is not conform with operation mode : 6 bits image required !");
+        //detector->setOperationMode(OperationMode(xsp::lambda::BitDepth::DEPTH_6));
+        //detector->setBitDepth(xsp::lambda::BitDepth::DEPTH_6);
+    }
+    else if (exposure_i > 0.0) {
+        if (om.bit_depth != xsp::lambda::BitDepth::DEPTH_1)
+            throw LIMA_HW_EXC(InvalidValue, "Exposure by frame is not conform with operation mode : 1 bit image required !");
+        //detector->setOperationMode(OperationMode(xsp::lambda::BitDepth::DEPTH_1));
+        //detector->setBitDepth(xsp::lambda::BitDepth::DEPTH_1);
+    }
+    else 
+        throw LIMA_HW_EXC(InvalidValue, "Exposure by frame should be positive and not null !");
+}
+
+void Camera::setExposureAccuTime(double exposureAccuTime)
+{
+    DEB_MEMBER_FUNCT();
+    DEB_TRACE() << "Camera::setExposureAccuTime - " << DEB_VAR1(exposureAccuTime);
+
+    double exposureByFrame = exposureAccuTime / 1E3;
+    if (exposureByFrame <= 0.0 || exposureByFrame > m_exposure)
+        LIMA_HW_EXC(InvalidValue, "Exposure by frame should be positive, greather than zero, in milliseconds and less than global exposure.");
+
+    m_exposure_i = exposureByFrame;
+
+    if (receiver->summedFrames() > 1)
+    {
+        // Update Nb frames to sum by image
+        int N = m_exposure / m_exposure_i;
+        receiver->setSummedFrames(N);
+
+        is_frame_summing = N > 1;
+    }
+}
+
+void Camera::setAccumulationMode(bool accumulationMode)
+{
+    DEB_MEMBER_FUNCT();
+    DEB_TRACE() << "Camera::setAccumulationMode - " << DEB_VAR1(accumulationMode);
+
+    // Le hardware se met en mode summing automatiquement quand N > 1
+    if (accumulationMode)
+    {
+        if (m_exposure_i == 0.0)
+            LIMA_HW_EXC(InvalidValue, "Impossible to determine N. Fix before exposureAccuTime");            
+    
+        // Activation summing
+        int N = m_exposure / m_exposure_i;
+        receiver->setSummedFrames(N);
+    }
+    else {
+        // Desactivation summing
+        receiver->setSummedFrames(1);
+    }
+    is_frame_summing = accumulationMode;
 }
