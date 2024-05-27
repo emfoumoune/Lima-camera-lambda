@@ -134,11 +134,19 @@ void Camera::CameraThread::execStartAcq()
         
                 void *ptr = buffer_mgr.getFrameBufferPtr(acq_frame_nb);
 
-                if(m_nDataType == 1) // short (12 bits)
-                    memcpy((short*)ptr, frame->data(), frame->size()); //we need a nb of BYTES .
-                else if(m_nDataType == 2) // int (24 bits)
-                    memcpy((int*)ptr, frame->data(), frame->size()); //we need a nb of BYTES .
-                
+                if (m_cam->receiver->summedFrames() > 1)
+                {
+                    // En mode accumulation image en 32 bits 
+                    memcpy((int32_t*)ptr, frame->data(), frame->size());
+                }
+                else
+                {
+
+                    if(m_nDataType == 1) // short (12 bits)
+                        memcpy((short*)ptr, frame->data(), frame->size()); //we need a nb of BYTES .
+                    else if(m_nDataType == 2) // int (24 bits)
+                        memcpy((int*)ptr, frame->data(), frame->size()); //we need a nb of BYTES .
+                }
                 m_cam->receiver->release(frame);
             }
 
